@@ -1,0 +1,413 @@
+{
+    /**
+ * Контейнер @var
+     */
+    $  защищенный контейнер;
+    /**
+ * @var TransformerFactory
+     */
+    Защищенный $  TransformerFactory;
+    /**
+ * Диспетчер @var
+     */
+    $  диспетчер защищен;
+    /**
+ * @var RoutingAdapterStub
+     */
+    $  защищенный адаптер;
+    /**
+ * Обработчик @var|m\LegacyMockInterface|m\MockInterface
+     */
+    $  исключение защищено;
+    /**
+ * @var маршрутизатор
+     */
+    $  защищенный маршрутизатор;
+    /**
+ * @var Auth
+     */
+    $  защищен от аутентификации;
+
+    Функция настройки   public(): недействительна
+    {
+        этот $-> контейнер = новый  контейнер;
+        этот $-> контейнер['запрос'] = Запрос::создать('/', 'ПОЛУЧИТЬ');
+        этот $-> контейнер['api.auth'] = новый  промежуточный файл;
+        этот $-> контейнер['api.limiting'] = новый  промежуточный файл;
+
+        Http\ Request::setAcceptParser(новый  Http \Parser\Accept('vnd', 'api', 'v1', 'json'));
+
+        этот $-> TransformerFactory = новый  TransformerFactory($this-> контейнер, новый  TransformerStub);
+
+        этот $-> adapter = новый  RoutingAdapterStub;
+        это $-> exception = m::mock(обработчик::class);
+        этот $-> маршрутизатор = новый  маршрутизатор ($this-> адаптер, $this-> исключение, $this-> контейнер, null, null);
+
+        этот $-> auth = новый  Auth($this-> маршрутизатор, $this-> контейнер, []);
+        этот $-> диспетчер = новый  диспетчер ($this-> контейнер, новая  файловая система, $this-> маршрутизатор, $this-> авторизация);
+
+ приложение()-> экземпляр(\Illuminate\Routing\Router::class, $this->адаптер);
+
+        это $-> диспетчер-> setSubtype('api');
+        это $-> диспетчер-> setStandardsTree('vnd');
+        это $-> dispatcher-> setDefaultVersion('v1');
+        это $-> dispatcher-> setDefaultFormat('json');
+
+        Ответ::setFormatters(['json' => новый  Http \Response\Format\Json]);
+        Ответ::setTransformer($this-> TransformerFactory);
+    }
+
+    testInternalRequests  функция  public()
+    {
+        это $-> router->version('v1', функция () {
+            это $-> router-> get('test', функция () {
+                'foo' return;
+            });
+
+            это $-> router-> post('test', функция () {
+                'возврат бара ;
+            });
+
+            это $-> router-> put('test', функция () {
+                "база возвращается ;
+            });
+
+            это $-> router-> patch('тест', функция () {
+                " я возвращаюсь;
+            });
+
+            это $-> маршрутизатор-> удалить('test', функция () {
+                "ян" возвращается ;
+            });
+        });
+
+        это$-> assertSame('foo', $this-> dispatcher->get('test'));
+        это$-> assertSame('bar', $this-> dispatcher-> post('test'));
+        это$-> assertSame('baz', $this-> dispatcher->put('test'));
+        это$-> assertSame('yin', $this-> dispatcher->patch('test'));
+        это$-> assertSame('yang', $this-> диспетчер-> удалить('test'));
+    }
+
+    Функция   testInternalRequestWithVersionAndParameters public()
+    {
+        это $-> router->version('v1', функция () {
+            это $-> router-> get('test', функция () {
+                'тест' возвращается ;
+            });
+        });
+
+        это$-> assertSame('test', $this-> диспетчер-> версия ('v1')-> с помощью(['foo' => 'bar'])-> get('test'));
+    }
+
+    Публичная  функция  testInternalRequestWithPrefix()
+    {
+        это$-> router->version('v1', ['prefix' => 'baz'], функция () {
+            это $-> router-> get('test', функция () {
+                'тест' возвращается ;
+            });
+        });
+
+        this$->assertSame('тест', $this-> диспетчер->получить('база / тест'));
+
+        это $-> диспетчер-> setPrefix('база');
+
+        это$->assertSame('test', $this->dispatcher->get('test'));
+    }
+
+    Функция   testInternalRequestWithDomain public()
+    {
+        это$-> router->version('v1', ['domain' => 'foo.bar'], функция () {
+            это $-> router-> get('test', функция () {
+                'тест' возвращается ;
+            });
+        });
+
+        это$-> assertSame('тест', $this-> диспетчер->получить('http://foo.bar/test '));
+
+        это$-> диспетчер-> setDefaultDomain('foo.bar');
+
+        это$->assertSame('test', $this->dispatcher->get('test'));
+    }
+
+    testinternalrequestthrowsexceptionпри  ответе не указывайте функцию  public()
+    {
+        это $-> expectException(InternalHttpException::class);
+
+        это $-> router->version('v1', функция () {
+            это $-> router-> get('test', функция () {
+                новый  возврат \ Подсветка \ Http \ Ответ ('test', 403);
+            });
+        });
+
+        это $-> dispatcher-> get('test');
+    }
+
+    testInternalExceptionContainsResponseObject  функция  public()
+    {
+        $this->router->version('v1', function () {
+            $this->router->get('test', function () {
+                return new \Illuminate\Http\Response('test', 401);
+            });
+        });
+
+        try {
+            это $-> dispatcher-> get('test');
+ } поймать (InternalHttpException $exception) {
+            это$->assertInstanceOf(\Illuminate\Http\Response::class, $exception->GetResponse());
+            это$-> assertSame('test', $exception-> GetResponse()-> getContent());
+        }
+    }
+
+    тестИрованиеHttpExceptionFallsThroughRouter  функция  public()
+    {
+        это $-> router->version('v1', функция () {
+            это $-> router-> get('test', функция () {
+                GoneHttpException  новый  выброс;
+            });
+        });
+
+        $передано = false;
+
+        попробуйте {
+            это $-> dispatcher-> get('test');
+ } поймать (GoneHttpException $exception) {
+            $ передано = истина;
+        }
+
+        это $-> assertTrue($ передано);
+    }
+
+    Тестовая  настройка функции  public()
+    {
+        $user = m::mock('Illuminate \Database \Eloquent\Model');
+
+        этот $-> router->version('v1', функция () использует ($user) {
+            это$-> router->get('test', функция () использовать ($user) {
+                это$-> assertSame($user, $this-> auth->user());
+            });
+        });
+
+        это $-> dispatcher-> be($user)-> once()-> get('test');
+    }
+
+    testInternalRequestWithMultipleVersionsCallsCorrectVersion  функция  public()
+    {
+        это $-> router->version('v1', функция () {
+            это $-> router-> get('foo', функция () {
+                'foo' return;
+            });
+        });
+
+        это $-> router->version(['v2', 'v3'], функция () {
+            $this->router->get('foo', function () {
+                return 'bar';
+            });
+        });
+
+        $this->assertSame('foo', $this->dispatcher->version('v1')->get('foo'));
+        $this->assertSame('bar', $this->dispatcher->version('v2')->get('foo'));
+        $this->assertSame('bar', $this->dispatcher->version('v3')->get('foo'));
+    }
+
+    public function testInternalRequestWithNestedInternalRequest()
+    {
+        $this->router->version('v1', function () {
+            $this->router->get('foo', function () {
+                return 'foo'.$this->dispatcher->version('v2')->get('foo');
+            });
+        });
+
+        $this->router->version('v2', function () {
+            $this->router->get('foo', function () {
+                return 'bar'.$this->dispatcher->version('v3')->get('foo');
+            });
+        });
+
+        $this->router->version('v3', function () {
+            $this->router->get('foo', function () {
+                return 'baz';
+            });
+        });
+
+        $this->assertSame('foobarbaz', $this->dispatcher->get('foo'));
+    }
+
+    public function testRequestStackIsMaintained()
+    {
+        $this->router->version('v1', ['prefix' => 'api'], function () {
+            $this->router->post('foo', function () {
+                $this->assertSame('bar', $this->router->getCurrentRequest()->input('foo'));
+                $this->dispatcher->with(['foo' => 'baz'])->post('api/bar');
+                $this->assertSame('bar', $this->router->getCurrentRequest()->input('foo'));
+            });
+
+            $this->router->post('bar', function () {
+                $this->assertSame('baz', $this->router->getCurrentRequest()->input('foo'));
+                $this->dispatcher->with(['foo' => 'bazinga'])->post('api/baz');
+                $this->assertSame('baz', $this->router->getCurrentRequest()->input('foo'));
+            });
+
+            $this->router->post('baz', function () {
+                $this->assertSame('bazinga', $this->router->getCurrentRequest()->input('foo'));
+            });
+        });
+
+        $this->dispatcher->with(['foo' => 'bar'])->post('api/foo');
+    }
+
+    public function testRouteStackIsMaintained()
+    {
+        это $-> router->version('v1', функция () {
+            это $-> router-> post('foo', ['as' => 'foo', функция () {
+                это$-> assertSame('foo', $this->маршрутизатор->getCurrentRoute()-> getName());
+                это $-> dispatcher-> post('bar');
+                это$-> assertSame('foo', $this->маршрутизатор->getCurrentRoute()-> getName());
+            }]);
+
+            это $-> router-> post('bar', ['as' => 'bar', функция () {
+                это$-> assertSame('bar', $this->router->getCurrentRoute()->getName());
+                это $-> dispatcher-> post('база');
+                это$-> assertSame('bar', $this->router->getCurrentRoute()->getName());
+            }]);
+
+            это $-> router-> post('baz', ['as' => 'bazinga', функция () {
+                это$-> assertSame('bazinga', $this->маршрутизатор->getCurrentRoute()->getName());
+            }]);
+        });
+
+        это $-> диспетчер-> post('foo');
+    }
+
+    Публичная  функция  testSendingJsonPayload()
+    {
+        это $-> router->version('v1', функция () {
+            это$-> router-> post('foo', функция () {
+                это$-> assertSame('jason', $this->router->getCurrentRequest()->json('username'));
+            });
+
+            это $-> router-> post('bar', функция () {
+                this$->assertSame('mat', $this->router->getCurrentRequest()->json('имя пользователя'));
+            });
+        });
+
+        этот $-> диспетчер-> json(['username' => 'jason'])-> post('foo');
+        это$-> диспетчер-> json('{"username":"mat"}')-> post('bar');
+    }
+
+    testInternalRequestsToDifferentDomains  функция  public()
+    {
+        это$-> маршрутизатор-> версия(['v1', 'v2'], ['домен' => 'foo.bar'], функция () {
+            это $-> router-> get('foo', функция () {
+                'v1 и v2 в домене foo.bar' возвращаются ;
+            });
+        });
+
+        это$-> router->version('v1', ['domain' => 'foo.baz'], функция () {
+            это $-> router-> get('foo', функция () {
+                'v1 в домене foo.baz'возврат ;
+            });
+        });
+
+        $this->router->version('v2', ['domain' => 'foo.baz'], function () {
+            $this->router->get('foo', function () {
+                return 'v2 on domain foo.baz';
+            });
+        });
+
+        $this->assertSame('v1 and v2 on domain foo.bar', $this->dispatcher->on('foo.bar')->version('v2')->get('foo'));
+        $this->assertSame('v1 on domain foo.baz', $this->dispatcher->on('foo.baz')->get('foo'));
+        $this->assertSame('v2 on domain foo.baz', $this->dispatcher->on('foo.baz')->version('v2')->get('foo'));
+    }
+
+    public function testRequestingRawResponse()
+    {
+        $this->router->version('v1', function () {
+            $this->router->get('foo', function () {
+                return ['foo' => 'bar'];
+            });
+        });
+
+        $response = $this->dispatcher->raw()->get('foo');
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame('{"foo":"bar"}', $response->getContent());
+        $this->assertSame(['foo' => 'bar'], $response->getOriginalContent());
+    }
+
+    public function testRequestingRawResponseWithTransformers()
+    {
+        $instance = null;
+
+        $this->router->version('v1', function () use (&$instance) {
+            $this->router->get('foo', function () use (&$instance) {
+                return $instance = new UserStub('Jason');
+            });
+        });
+
+        $this->transformerFactory->register(UserStub::class, UserTransformerStub::class);
+
+        $response = $this->dispatcher->raw()->get('foo');
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame('{"name":"Jason"}', $response->getContent());
+        $this->assertSame($instance, $response->getOriginalContent());
+    }
+
+    testUsingRequestFacadeDoesNotCacheRequestInstance  функция  public()
+    {
+        RequestFacade::setFacadeApplication($this->контейнер);
+
+        это $-> router->version('v1', функция () {
+            это $-> router-> get('foo', функция () {
+                RequestFacade  возвращает::input('foo');
+            });
+        });
+
+        это $-> assertNull(RequestFacade::input('foo'));
+
+        $response = $this->диспетчер-> с помощью (['foo' => 'bar'])-> получить('foo');
+
+        это$->assertSame('bar', $response);
+        это $-> assertNull(RequestFacade::input('foo'));
+    }
+
+    Общедоступная  функция  testRedirectResponseThrowsException()
+    {
+        это $-> router->version('v1', функция () {
+            это$-> router->get('перенаправление', функция () {
+                Перенаправить  ответ на новый  возврат ('redirect-test');
+            });
+        });
+
+        $response = $this-> диспетчер-> получить ('перенаправить');
+        это $-> assertInstanceOf(перенаправление ответа::class, $response);
+        это$-> assertSame('redirect-test', $response->getTargetUrl());
+    }
+
+    Общедоступная  функция  testNotOkJsonResponseThrowsException()
+    {
+        это $-> expectException(InternalHttpException::class);
+
+        это $-> router->version('v1', функция () {
+            это $-> router->get('json', функция () {
+                JsonResponse  возвращает новый  результат (['is' => 'json'], 422);
+            });
+        });
+
+        это $-> dispatcher-> get('json');
+    }
+
+    testFormRequestValidationFailureThrowsValidationException  функция  publicИсключение testFormRequestValidationFailureThrowsValidationException()
+    {
+        это $-> expectException(ValidationHttpException::class);
+
+        это $-> router->version('v1', функция () {
+            это $-> router-> get('сбой', функция () {
+                // Издевательство над вызовом проверки формы на данный момент является сложной задачей, поэтому следующая лучшая вещь
+                ValidationHttpException  новый  бросок(['foo' => 'bar']);
+            });
+        });
+
+        это $-> диспетчер-> получить ('сбой');
+    }
+}
